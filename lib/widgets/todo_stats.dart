@@ -3,7 +3,6 @@ import 'package:compile_todo_app/providesrs/todo_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 class TodoStats extends ConsumerWidget {
   const TodoStats({super.key});
 
@@ -11,7 +10,7 @@ class TodoStats extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Key concept: Watching computed provider
     final stats = ref.watch(todoStatsProvider);
-    
+
     return Container(
       padding: EdgeInsets.all(16),
       margin: EdgeInsets.all(16),
@@ -22,16 +21,8 @@ class TodoStats extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _StatItem(
-            label: 'Total',
-            value: stats.total,
-            color: Colors.blue,
-          ),
-          _StatItem(
-            label: 'Active',
-            value: stats.active,
-            color: Colors.orange,
-          ),
+          _StatItem(label: 'Total', value: stats.total, color: Colors.blue),
+          _StatItem(label: 'Active', value: stats.active, color: Colors.orange),
           _StatItem(
             label: 'Completed',
             value: stats.completed,
@@ -66,13 +57,7 @@ class _StatItem extends StatelessWidget {
             color: color,
           ),
         ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
   }

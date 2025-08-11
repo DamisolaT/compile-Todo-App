@@ -1,20 +1,18 @@
-// lib/providers/todo_providers.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/todo.dart';
 
-// 1. StateNotifierProvider for complex state (todo list)
+// Todo List StateNotifier
 class TodoListNotifier extends StateNotifier<List<Todo>> {
   TodoListNotifier() : super([]);
 
   void addTodo(String title) {
     if (title.trim().isEmpty) return;
-    
+
     final newTodo = Todo(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: title.trim(),
     );
-    
-    // Key concept: Create new state, don't modify existing
+
     state = [...state, newTodo];
   }
 
@@ -41,34 +39,51 @@ final todoListProvider = StateNotifierProvider<TodoListNotifier, List<Todo>>((re
   return TodoListNotifier();
 });
 
-// 2. StateProvider for simple state (filter)
+// Filter enum
 enum TodoFilter { all, active, completed }
 
+// Filter state provider
 final todoFilterProvider = StateProvider<TodoFilter>((ref) => TodoFilter.all);
 
-// 3. Provider for computed values (filtered todos)
+// Search query provider (for debounced search text)
+final searchQueryProvider = StateProvider<String>((ref) => '');
+
+// Filtered todos computed provider (uses filter & search query)
 final filteredTodosProvider = Provider<List<Todo>>((ref) {
   final todos = ref.watch(todoListProvider);
   final filter = ref.watch(todoFilterProvider);
+  final searchQuery = ref.watch(searchQueryProvider).toLowerCase();
 
+  // Filter todos by status
+  List<Todo> filtered;
   switch (filter) {
     case TodoFilter.all:
-      return todos;
+      filtered = todos;
+      break;
     case TodoFilter.active:
-      return todos.where((todo) => !todo.isCompleted).toList();
+      filtered = todos.where((todo) => !todo.isCompleted).toList();
+      break;
     case TodoFilter.completed:
-      return todos.where((todo) => todo.isCompleted).toList();
+      filtered = todos.where((todo) => todo.isCompleted).toList();
+      break;
   }
+
+  // Further filter by search query (title contains query)
+  if (searchQuery.isNotEmpty) {
+    filtered = filtered.where((todo) => todo.title.toLowerCase().contains(searchQuery)).toList();
+  }
+
+  return filtered;
 });
 
-// 4. Provider for statistics (computed values)
+// Stats provider
 final todoStatsProvider = Provider<TodoStats>((ref) {
   final todos = ref.watch(todoListProvider);
-  
+
   final total = todos.length;
   final completed = todos.where((todo) => todo.isCompleted).length;
   final active = total - completed;
-  
+
   return TodoStats(
     total: total,
     completed: completed,

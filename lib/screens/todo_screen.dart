@@ -1,87 +1,124 @@
-// lib/screens/todo_screen.dart
-import 'package:compile_todo_app/providesrs/todo_providers.dart';
+import 'dart:async';
+
+import 'package:compile_todo_app/providesrs/todo_providers.dart' hide TodoStats;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../widgets/todo_item.dart';
-
+import '../widgets/todo_stats.dart' show TodoStats;
+import '../widgets/todo_item.dart' hide Todo;
 import '../widgets/todo_filters.dart';
 
-class TodoScreen extends ConsumerWidget {
-  final TextEditingController _controller = TextEditingController();
+class TodoScreen extends ConsumerStatefulWidget {
+  const TodoScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Key concept: ref.watch() for reactive updates
+  ConsumerState<TodoScreen> createState() => _TodoScreenState();
+}
+
+class _TodoScreenState extends ConsumerState<TodoScreen> {
+  final TextEditingController _controller = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      ref.read(searchQueryProvider.notifier).state = query;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final filteredTodos = ref.watch(filteredTodosProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Riverpod Todo Showcase'),
+        title: const Text('Riverpod Todo Showcase'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Column(
-        children: [
-          // Statistics section
-        //  TodoStats(),
-        //TodoStats(active: , total: null, completed: null)
-          
-          // Filter section
-          TodoFilters(),
-          
-          // Add todo section
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: 'Enter a new todo...',
-                      border: OutlineInputBorder(),
-                    ),
-                    onSubmitted: (value) => _addTodo(ref, value),
-                  ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Search TextField
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: TextField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  labelText: 'Search todos',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
                 ),
-                SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () => _addTodo(ref, _controller.text),
-                  child: Text('Add'),
-                ),
-              ],
+                onChanged: _onSearchChanged,
+              ),
             ),
-          ),
-          
-          // Todo list
-          Expanded(
-            child: filteredTodos.isEmpty
-                ? Center(
-                    child: Text(
-                      'No todos yet!\nAdd one above to get started.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[600],
+
+            const TodoStats(),
+            const TodoFilters(),
+
+            // Add todo section
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter a new todo...',
+                        border: OutlineInputBorder(),
                       ),
+                      onSubmitted: (value) => _addTodo(value),
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: filteredTodos.length,
-                    itemBuilder: (context, index) {
-                      final todo = filteredTodos[index];
-                      return TodoItem(todo: todo);
-                    },
                   ),
-          ),
-        ],
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => _addTodo(_controller.text),
+                    child: const Text('Add'),
+                  ),
+                ],
+              ),
+            ),
+
+            // Use Expanded ONLY here to fill the rest of the screen with the list
+            Expanded(
+              child: filteredTodos.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No todos yet!\nAdd one above to get started.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: filteredTodos.length,
+                      itemBuilder: (context, index) {
+                        final todo = filteredTodos[index];
+                        return TodoItem(todo: todo);
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _addTodo(WidgetRef ref, String title) {
+  void _addTodo(String title) {
     if (title.trim().isNotEmpty) {
-      // Key concept: ref.read() for actions (no rebuilding needed)
       ref.read(todoListProvider.notifier).addTodo(title);
       _controller.clear();
     }
